@@ -334,11 +334,15 @@ export function DiagramProvider({ children }: { children: React.ReactNode }) {
                             }
 
                             // Use Electron save dialog with options
-                            const saveOptions = { filename, format }
-                            const success = await window.electronAPI.saveFile(
-                                dataToSave,
-                                saveOptions,
-                            )
+                            const success = await (
+                                window.electronAPI?.saveFile as (
+                                    data: string,
+                                    options?: {
+                                        filename?: string
+                                        format?: string
+                                    },
+                                ) => Promise<boolean>
+                            )(dataToSave, { filename, format })
                             if (success) {
                                 // Call save success callback
                                 if (onSaveSuccess) {
