@@ -50,7 +50,12 @@
         "badResponse": "无帮助",
         "clickToEdit": "点击编辑",
         "editMessage": "编辑消息",
-        "saveAndSubmit": "保存并提交"
+        "saveAndSubmit": "保存并提交",
+        "saveSuccessAndCleared": "文件保存成功。开始新项目。",
+        "restoreLastProject": "恢复上次项目",
+        "deleteProject": "删除项目",
+        "deleteProjectConfirm": "确定要删除此项目吗？此操作无法撤销。",
+        "projectDeleted": "项目已成功删除"
     },
     "examples": {
         "title": "用 AI 创建图表",
@@ -106,6 +111,8 @@
         "format": "格式",
         "filename": "文件名",
         "filenamePlaceholder": "输入文件名",
+        "selectPath": "选择保存位置",
+        "selectPathDescription": "选择文件保存位置（使用系统对话框）",
         "formats": {
             "drawio": "Draw.io XML",
             "png": "PNG 图片",
@@ -246,6 +253,23 @@
         "onlyVerifiedShown": "仅显示已验证的模型",
         "showUnvalidatedModels": "显示未验证的模型",
         "allModelsShown": "显示所有模型（包括未验证的）",
-        "unvalidatedModelWarning": "此模型尚未验证"
+        "unvalidatedModelWarning": "此模型尚未验证",
+        "ollamaBaseUrlHint": "输入您的 Ollama 服务器 URL（例如：http://192.168.13.44:11434/api）"
+    },
+    "browser": {
+        "unsupportedTitle": "浏览器兼容性提醒",
+        "unsupportedMessage": "检测到您使用的浏览器可能不完全支持本应用。建议使用最新版本的 Chrome、Firefox、Safari 或 Edge 以获得最佳体验。",
+        "unsupportedDismiss": "我知道了",
+        "recommendedBrowsers": "推荐浏览器：Chrome 90+、Firefox 88+、Safari 14+、Edge 90+",
+        "updateBrowser": "更新浏览器",
+        "learnMore": "了解更多"
+    },
+    "opensource": {
+        "title": "开源声明",
+        "description": "本项目基于开源项目 Next AI Draw.io 进行二次开发",
+        "originalProject": "原项目",
+        "githubLink": "GitHub 仓库",
+        "thanks": "感谢所有开源贡献者",
+        "license": "Apache 2.0 许可证"
     }
 }

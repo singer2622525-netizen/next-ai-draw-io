@@ -50,7 +50,12 @@
         "badResponse": "悪い応答",
         "clickToEdit": "クリックして編集",
         "editMessage": "メッセージを編集",
-        "saveAndSubmit": "保存して送信"
+        "saveAndSubmit": "保存して送信",
+        "saveSuccessAndCleared": "ファイルが正常に保存されました。新しいプロジェクトを開始します。",
+        "restoreLastProject": "最後のプロジェクトを復元",
+        "deleteProject": "プロジェクトを削除",
+        "deleteProjectConfirm": "このプロジェクトを削除してもよろしいですか？この操作は元に戻せません。",
+        "projectDeleted": "プロジェクトが正常に削除されました"
     },
     "examples": {
         "title": "AI でダイアグラムを作成",
@@ -106,6 +111,8 @@
         "format": "形式",
         "filename": "ファイル名",
         "filenamePlaceholder": "ファイル名を入力",
+        "selectPath": "保存場所を選択",
+        "selectPathDescription": "ファイルの保存場所を選択（システムダイアログを使用）",
         "formats": {
             "drawio": "Draw.io XML",
             "png": "PNG 画像",
@@ -246,6 +253,23 @@
         "onlyVerifiedShown": "検証済みのモデルのみ表示",
         "showUnvalidatedModels": "未検証のモデルを表示",
         "allModelsShown": "すべてのモデルを表示（未検証を含む）",
-        "unvalidatedModelWarning": "このモデルは検証されていません"
+        "unvalidatedModelWarning": "このモデルは検証されていません",
+        "ollamaBaseUrlHint": "Ollama サーバーの URL を入力してください（例：http://192.168.13.44:11434/api）"
+    },
+    "browser": {
+        "unsupportedTitle": "ブラウザ互換性の通知",
+        "unsupportedMessage": "お使いのブラウザがこのアプリケーションを完全にサポートしていない可能性があります。最適な体験のために、最新バージョンの Chrome、Firefox、Safari、または Edge の使用を推奨します。",
+        "unsupportedDismiss": "了解しました",
+        "recommendedBrowsers": "推奨ブラウザ：Chrome 90+、Firefox 88+、Safari 14+、Edge 90+",
+        "updateBrowser": "ブラウザを更新",
+        "learnMore": "詳細を見る"
+    },
+    "opensource": {
+        "title": "オープンソースの通知",
+        "description": "このプロジェクトはオープンソースプロジェクト Next AI Draw.io をベースに二次開発されています",
+        "originalProject": "オリジナルプロジェクト",
+        "githubLink": "GitHub リポジトリ",
+        "thanks": "すべてのオープンソース貢献者に感謝します",
+        "license": "Apache 2.0 ライセンス"
     }
 }

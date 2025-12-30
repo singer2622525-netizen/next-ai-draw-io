@@ -50,7 +50,12 @@
         "badResponse": "Bad response",
         "clickToEdit": "Click to edit",
         "editMessage": "Edit message",
-        "saveAndSubmit": "Save & Submit"
+        "saveAndSubmit": "Save & Submit",
+        "saveSuccessAndCleared": "File saved successfully. Starting fresh project.",
+        "restoreLastProject": "Restore last project",
+        "deleteProject": "Delete project",
+        "deleteProjectConfirm": "Are you sure you want to delete this project? This action cannot be undone.",
+        "projectDeleted": "Project deleted successfully"
     },
     "examples": {
         "title": "Create diagrams with AI",
@@ -106,6 +111,8 @@
         "format": "Format",
         "filename": "Filename",
         "filenamePlaceholder": "Enter filename",
+        "selectPath": "Choose save location",
+        "selectPathDescription": "Select where to save the file (uses system dialog)",
         "formats": {
             "drawio": "Draw.io XML",
             "png": "PNG Image",
@@ -246,6 +253,23 @@
         "onlyVerifiedShown": "Only verified models are shown",
         "showUnvalidatedModels": "Show unvalidated models",
         "allModelsShown": "All models are shown (including unvalidated)",
-        "unvalidatedModelWarning": "This model has not been validated"
+        "unvalidatedModelWarning": "This model has not been validated",
+        "ollamaBaseUrlHint": "Enter your Ollama server URL (e.g., http://192.168.13.44:11434/api)"
+    },
+    "browser": {
+        "unsupportedTitle": "Browser Compatibility Notice",
+        "unsupportedMessage": "Your browser may not fully support this application. We recommend using the latest version of Chrome, Firefox, Safari, or Edge for the best experience.",
+        "unsupportedDismiss": "Got it",
+        "recommendedBrowsers": "Recommended browsers: Chrome 90+, Firefox 88+, Safari 14+, Edge 90+",
+        "updateBrowser": "Update Browser",
+        "learnMore": "Learn More"
+    },
+    "opensource": {
+        "title": "Open Source Notice",
+        "description": "This project is based on the open-source project Next AI Draw.io",
+        "originalProject": "Original Project",
+        "githubLink": "GitHub Repository",
+        "thanks": "Thanks to all open-source contributors",
+        "license": "Apache 2.0 License"
     }
 }

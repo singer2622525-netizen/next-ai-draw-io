@@ -23,13 +23,16 @@ interface DiagramContextType {
         filename: string,
         format: ExportFormat,
         sessionId?: string,
-    ) => void
+        usePathSelector?: boolean,
+    ) => void | Promise<void>
     saveDiagramToStorage: () => Promise<void>
     isDrawioReady: boolean
     onDrawioLoad: () => void
     resetDrawioReady: () => void
     showSaveDialog: boolean
     setShowSaveDialog: (show: boolean) => void
+    onSaveSuccess?: () => void
+    setOnSaveSuccess: (callback: (() => void) | undefined) => void
 }
 
 const DiagramContext = createContext<DiagramContextType | undefined>(undefined)
@@ -43,6 +46,9 @@ export function DiagramProvider({ children }: { children: React.ReactNode }) {
     const [isDrawioReady, setIsDrawioReady] = useState(false)
     const [canSaveDiagram, setCanSaveDiagram] = useState(false)
     const [showSaveDialog, setShowSaveDialog] = useState(false)
+    const [onSaveSuccess, setOnSaveSuccess] = useState<
+        (() => void) | undefined
+    >(undefined)
     const hasCalledOnLoadRef = useRef(false)
     const drawioRef = useRef<DrawIoEmbedRef | null>(null)
     const resolverRef = useRef<((value: string) => void) | null>(null)
@@ -243,10 +249,11 @@ export function DiagramProvider({ children }: { children: React.ReactNode }) {
         setDiagramHistory([])
     }
 
-    const saveDiagramToFile = (
+    const saveDiagramToFile = async (
         filename: string,
         format: ExportFormat,
         sessionId?: string,
+        usePathSelector = false,
     ) => {
         if (!drawioRef.current) {
             console.warn("Draw.io editor not ready")
@@ -258,7 +265,7 @@ export function DiagramProvider({ children }: { children: React.ReactNode }) {
 
         // Set up the resolver before triggering export
         saveResolverRef.current = {
-            resolver: (exportData: string) => {
+            resolver: async (exportData: string) => {
                 let fileContent: string | Blob
                 let mimeType: string
                 let extension: string
@@ -291,7 +298,125 @@ export function DiagramProvider({ children }: { children: React.ReactNode }) {
                 // Log save event to Langfuse (flags the trace)
                 logSaveToLangfuse(filename, format, sessionId)
 
-                // Handle download
+                // Check if we should use path selector
+                if (usePathSelector) {
+                    // Try Electron first
+                    if (
+                        typeof window !== "undefined" &&
+                        window.electronAPI?.isElectron
+                    ) {
+                        try {
+                            // Convert fileContent to string if needed
+                            let dataToSave: string
+                            if (typeof fileContent === "string") {
+                                if (fileContent.startsWith("data:")) {
+                                    // For PNG, extract base64 data from data URL
+                                    const base64Data = fileContent.split(",")[1]
+                                    dataToSave = base64Data // Keep as base64 for Electron
+                                } else {
+                                    dataToSave = fileContent
+                                }
+                            } else {
+                                // Convert Blob to string
+                                const arrayBuffer = await (
+                                    fileContent as Blob
+                                ).arrayBuffer()
+                                if (format === "png") {
+                                    // For PNG, convert to base64
+                                    const bytes = new Uint8Array(arrayBuffer)
+                                    const binary = String.fromCharCode(...bytes)
+                                    dataToSave = btoa(binary)
+                                } else {
+                                    dataToSave = new TextDecoder().decode(
+                                        arrayBuffer,
+                                    )
+                                }
+                            }
+
+                            // Use Electron save dialog with options
+                            const success = await window.electronAPI.saveFile(
+                                dataToSave,
+                                {
+                                    filename,
+                                    format,
+                                },
+                            )
+                            if (success) {
+                                // Call save success callback
+                                if (onSaveSuccess) {
+                                    setTimeout(() => onSaveSuccess(), 500)
+                                }
+                                return // Successfully saved via Electron
+                            }
+                        } catch (error) {
+                            console.warn("Failed to save via Electron:", error)
+                            // Fall through to web file system API or download
+                        }
+                    }
+
+                    // Try File System Access API (Chrome/Edge)
+                    if (
+                        typeof window !== "undefined" &&
+                        "showSaveFilePicker" in window
+                    ) {
+                        try {
+                            let blob: Blob
+                            if (typeof fileContent === "string") {
+                                if (fileContent.startsWith("data:")) {
+                                    // Convert data URL to blob
+                                    const response = await fetch(fileContent)
+                                    blob = await response.blob()
+                                } else {
+                                    blob = new Blob([fileContent], {
+                                        type: mimeType,
+                                    })
+                                }
+                            } else {
+                                blob = fileContent
+                            }
+
+                            const fileHandle = await window.showSaveFilePicker({
+                                suggestedName: `${filename}${extension}`,
+                                types: [
+                                    {
+                                        description:
+                                            format === "drawio"
+                                                ? "Draw.io XML File"
+                                                : format === "png"
+                                                  ? "PNG Image"
+                                                  : "SVG Image",
+                                        accept: {
+                                            [mimeType]: [extension],
+                                        },
+                                    },
+                                ],
+                            })
+
+                            const writable = await fileHandle.createWritable()
+                            await writable.write(blob)
+                            await writable.close()
+                            // Call save success callback
+                            if (onSaveSuccess) {
+                                setTimeout(() => onSaveSuccess(), 500)
+                            }
+                            return // Successfully saved via File System Access API
+                        } catch (error: unknown) {
+                            // User cancelled or error occurred
+                            if (
+                                error instanceof Error &&
+                                error.name !== "AbortError"
+                            ) {
+                                console.warn(
+                                    "Failed to save via File System Access API:",
+                                    error,
+                                )
+                            }
+                            // Fall through to default download
+                        }
+                    }
+                }
+
+                // Default: use browser download
                 let url: string
                 if (
                     typeof fileContent === "string" &&
@@ -300,7 +425,10 @@ export function DiagramProvider({ children }: { children: React.ReactNode }) {
                     // Already a data URL (PNG)
                     url = fileContent
                 } else {
-                    const blob = new Blob([fileContent], { type: mimeType })
+                    const blob =
+                        typeof fileContent === "string"
+                            ? new Blob([fileContent], { type: mimeType })
+                            : fileContent
                     url = URL.createObjectURL(blob)
                 }
 
@@ -309,11 +437,20 @@ export function DiagramProvider({ children }: { children: React.ReactNode }) {
                 a.download = `${filename}${extension}`
                 document.body.appendChild(a)
                 a.click()
-                document.body.removeChild(a)
+                // Check if element is still a child before removing
+                if (a.parentNode === document.body) {
+                    document.body.removeChild(a)
+                }
 
                 // Delay URL revocation to ensure download completes
                 if (!url.startsWith("data:")) {
                     setTimeout(() => URL.revokeObjectURL(url), 100)
+                }
+
+                // Call save success callback after download starts
+                // Note: For browser download, we assume success after triggering download
+                if (onSaveSuccess) {
+                    setTimeout(() => onSaveSuccess(), 500)
                 }
             },
             format,
@@ -360,6 +497,8 @@ export function DiagramProvider({ children }: { children: React.ReactNode }) {
                 resetDrawioReady,
                 showSaveDialog,
                 setShowSaveDialog,
+                onSaveSuccess,
+                setOnSaveSuccess,
             }}
         >
             {children}

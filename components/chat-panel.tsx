@@ -7,7 +7,10 @@ import {
     MessageSquarePlus,
     PanelRightClose,
     PanelRightOpen,
+    RotateCcw,
     Settings,
+    Trash2,
+    X,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -44,6 +47,13 @@ const STORAGE_MESSAGES_KEY = "next-ai-draw-io-messages"
 const STORAGE_XML_SNAPSHOTS_KEY = "next-ai-draw-io-xml-snapshots"
 const STORAGE_SESSION_ID_KEY = "next-ai-draw-io-session-id"
 export const STORAGE_DIAGRAM_XML_KEY = "next-ai-draw-io-diagram-xml"
+
+// Backup keys for recovery after save
+const STORAGE_BACKUP_MESSAGES_KEY = "next-ai-draw-io-backup-messages"
+const STORAGE_BACKUP_XML_SNAPSHOTS_KEY = "next-ai-draw-io-backup-xml-snapshots"
+const STORAGE_BACKUP_DIAGRAM_XML_KEY = "next-ai-draw-io-backup-diagram-xml"
+const STORAGE_BACKUP_SESSION_ID_KEY = "next-ai-draw-io-backup-session-id"
+const STORAGE_HAS_BACKUP_KEY = "next-ai-draw-io-has-backup"
 
 // sessionStorage keys
 const SESSION_STORAGE_INPUT_KEY = "next-ai-draw-io-input"
@@ -121,6 +131,7 @@ export default function ChatPanel({
         resolverRef,
         chartXML,
         clearDiagram,
+        setOnSaveSuccess,
     } = useDiagram()
 
     const dict = useDictionary()
@@ -166,6 +177,37 @@ export default function ChatPanel({
     const [tpmLimit, setTpmLimit] = useState(0)
     const [showNewChatDialog, setShowNewChatDialog] = useState(false)
     const [minimalStyle, setMinimalStyle] = useState(false)
+    const [showBrowserWarning, setShowBrowserWarning] = useState(false)
+    const [hasBackup, setHasBackup] = useState(false)
+    const [hasProject, setHasProject] = useState(false)
+
+    // Check browser compatibility
+    useEffect(() => {
+        const checkBrowserCompatibility = () => {
+            // Check if browser warning was dismissed
+            const dismissed = localStorage.getItem(
+                "next-ai-draw-io-browser-warning-dismissed",
+            )
+            if (dismissed === "true") return
+
+            const userAgent = navigator.userAgent
+            // Check for unsupported browsers
+            const isIE = /MSIE|Trident/.test(userAgent)
+            const chromeMatch = userAgent.match(/Chrome\/(\d+)/)
+            const firefoxMatch = userAgent.match(/Firefox\/(\d+)/)
+            const safariMatch = userAgent.match(/Version\/(\d+).*Safari/)
+
+            const isOldChrome = chromeMatch && parseInt(chromeMatch[1]) < 90
+            const isOldFirefox = firefoxMatch && parseInt(firefoxMatch[1]) < 88
+            const isOldSafari = safariMatch && parseInt(safariMatch[1]) < 14
+
+            if (isIE || isOldChrome || isOldFirefox || isOldSafari) {
+                setShowBrowserWarning(true)
+            }
+        }
+
+        checkBrowserCompatibility()
+    }, [])
 
     // Restore input from sessionStorage on mount (when ChatPanel remounts due to key change)
     useEffect(() => {
@@ -645,6 +687,157 @@ export default function ChatPanel({
         }
     }
 
+    // Function to backup current project data
+    const backupProjectData = useCallback(() => {
+        try {
+            const messages = localStorage.getItem(STORAGE_MESSAGES_KEY)
+            const snapshots = localStorage.getItem(STORAGE_XML_SNAPSHOTS_KEY)
+            const diagramXml = localStorage.getItem(STORAGE_DIAGRAM_XML_KEY)
+            const sessionId = localStorage.getItem(STORAGE_SESSION_ID_KEY)
+
+            if (messages) {
+                localStorage.setItem(STORAGE_BACKUP_MESSAGES_KEY, messages)
+            }
+            if (snapshots) {
+                localStorage.setItem(
+                    STORAGE_BACKUP_XML_SNAPSHOTS_KEY,
+                    snapshots,
+                )
+            }
+            if (diagramXml) {
+                localStorage.setItem(STORAGE_BACKUP_DIAGRAM_XML_KEY, diagramXml)
+            }
+            if (sessionId) {
+                localStorage.setItem(STORAGE_BACKUP_SESSION_ID_KEY, sessionId)
+            }
+            localStorage.setItem(STORAGE_HAS_BACKUP_KEY, "true")
+        } catch (error) {
+            console.error("Failed to backup project data:", error)
+        }
+    }, [])
+
+    // Function to clear current project data
+    const clearProjectData = useCallback(() => {
+        try {
+            localStorage.removeItem(STORAGE_MESSAGES_KEY)
+            localStorage.removeItem(STORAGE_XML_SNAPSHOTS_KEY)
+            localStorage.removeItem(STORAGE_DIAGRAM_XML_KEY)
+            const newSessionId = `session-${Date.now()}-${Math.random()
+                .toString(36)
+                .slice(2, 9)}`
+            localStorage.setItem(STORAGE_SESSION_ID_KEY, newSessionId)
+            sessionStorage.removeItem(SESSION_STORAGE_INPUT_KEY)
+            setSessionId(newSessionId)
+            setMessages([])
+            clearDiagram()
+            handleFileChange([])
+            xmlSnapshotsRef.current.clear()
+        } catch (error) {
+            console.error("Failed to clear project data:", error)
+        }
+    }, [clearDiagram, handleFileChange, setMessages, setSessionId])
+
+    // Function to restore last project from backup
+    const restoreLastProject = useCallback(() => {
+        try {
+            const hasBackup = localStorage.getItem(STORAGE_HAS_BACKUP_KEY)
+            if (hasBackup !== "true") {
+                toast.error("No backup found to restore")
+                return
+            }
+
+            const backupMessages = localStorage.getItem(
+                STORAGE_BACKUP_MESSAGES_KEY,
+            )
+            const backupSnapshots = localStorage.getItem(
+                STORAGE_BACKUP_XML_SNAPSHOTS_KEY,
+            )
+            const backupDiagramXml = localStorage.getItem(
+                STORAGE_BACKUP_DIAGRAM_XML_KEY,
+            )
+            const backupSessionId = localStorage.getItem(
+                STORAGE_BACKUP_SESSION_ID_KEY,
+            )
+
+            if (backupMessages) {
+                const parsed = JSON.parse(backupMessages)
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    localStorage.setItem(STORAGE_MESSAGES_KEY, backupMessages)
+                    setMessages(parsed)
+                }
+            }
+
+            if (backupSnapshots) {
+                const parsed = JSON.parse(backupSnapshots)
+                xmlSnapshotsRef.current = new Map(parsed)
+                localStorage.setItem(STORAGE_XML_SNAPSHOTS_KEY, backupSnapshots)
+            }
+
+            if (backupDiagramXml) {
+                localStorage.setItem(STORAGE_DIAGRAM_XML_KEY, backupDiagramXml)
+                onDisplayChart(backupDiagramXml, true)
+            }
+
+            if (backupSessionId) {
+                localStorage.setItem(STORAGE_SESSION_ID_KEY, backupSessionId)
+                setSessionId(backupSessionId)
+            }
+
+            toast.success("Last project restored successfully")
+            setHasBackup(false)
+            setHasProject(true)
+        } catch (error) {
+            console.error("Failed to restore project:", error)
+            toast.error("Failed to restore project")
+        }
+    }, [onDisplayChart, setMessages, setSessionId])
+
+    // Function to delete current project
+    const deleteProject = useCallback(() => {
+        if (
+            window.confirm(
+                dict.chat.deleteProjectConfirm ||
+                    "Are you sure you want to delete this project? This action cannot be undone.",
+            )
+        ) {
+            clearProjectData()
+            // Also clear backup
+            localStorage.removeItem(STORAGE_BACKUP_MESSAGES_KEY)
+            localStorage.removeItem(STORAGE_BACKUP_XML_SNAPSHOTS_KEY)
+            localStorage.removeItem(STORAGE_BACKUP_DIAGRAM_XML_KEY)
+            localStorage.removeItem(STORAGE_BACKUP_SESSION_ID_KEY)
+            localStorage.removeItem(STORAGE_HAS_BACKUP_KEY)
+            setHasBackup(false)
+            setHasProject(false)
+            toast.success(
+                dict.chat.projectDeleted || "Project deleted successfully",
+            )
+        }
+    }, [clearProjectData, dict])
+
+    // Set up save success callback
+    useEffect(() => {
+        if (setOnSaveSuccess) {
+            setOnSaveSuccess(() => {
+                // Backup current data before clearing
+                backupProjectData()
+                // Clear current project data
+                clearProjectData()
+                setHasBackup(true)
+                setHasProject(false)
+                toast.success(
+                    dict.chat.saveSuccessAndCleared ||
+                        "File saved successfully. Starting fresh project.",
+                )
+            })
+        }
+        return () => {
+            if (setOnSaveSuccess) {
+                setOnSaveSuccess(undefined)
+            }
+        }
+    }, [backupProjectData, clearProjectData, setOnSaveSuccess, dict])
+
     const handleNewChat = useCallback(() => {
         setMessages([])
         clearDiagram()
@@ -973,6 +1166,42 @@ export default function ChatPanel({
                             )}
                     </div>
                     <div className="flex items-center gap-1 justify-end overflow-visible">
+                        {/* Restore last project button */}
+                        {hasBackup && (
+                            <>
+                                <ButtonWithTooltip
+                                    tooltipContent={
+                                        dict.chat.restoreLastProject
+                                    }
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={restoreLastProject}
+                                    className="hover:bg-accent"
+                                >
+                                    <RotateCcw
+                                        className={`${isMobile ? "h-4 w-4" : "h-5 w-5"} text-muted-foreground`}
+                                    />
+                                </ButtonWithTooltip>
+                                <div className="w-px h-5 bg-border mx-1" />
+                            </>
+                        )}
+                        {/* Delete project button */}
+                        {hasProject && (
+                            <>
+                                <ButtonWithTooltip
+                                    tooltipContent={dict.chat.deleteProject}
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={deleteProject}
+                                    className="hover:bg-accent hover:text-destructive"
+                                >
+                                    <Trash2
+                                        className={`${isMobile ? "h-4 w-4" : "h-5 w-5"} text-muted-foreground`}
+                                    />
+                                </ButtonWithTooltip>
+                                <div className="w-px h-5 bg-border mx-1" />
+                            </>
+                        )}
                         <ButtonWithTooltip
                             tooltipContent={dict.nav.newChat}
                             variant="ghost"
@@ -1053,6 +1282,37 @@ export default function ChatPanel({
                 />
             )}
 
+            {/* Browser Compatibility Warning */}
+            {showBrowserWarning && (
+                <div className="mx-4 mt-2 mb-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-1">
+                            {dict.browser.unsupportedTitle}
+                        </div>
+                        <div className="text-xs text-amber-700 dark:text-amber-300 mb-2">
+                            {dict.browser.unsupportedMessage}
+                        </div>
+                        <div className="text-xs text-amber-600 dark:text-amber-400">
+                            {dict.browser.recommendedBrowsers}
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => {
+                            setShowBrowserWarning(false)
+                            localStorage.setItem(
+                                "next-ai-draw-io-browser-warning-dismissed",
+                                "true",
+                            )
+                        }}
+                        className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 flex-shrink-0"
+                        aria-label={dict.browser.unsupportedDismiss}
+                    >
+                        <X className="h-4 w-4" />
+                    </button>
+                </div>
+            )}
+
             {/* Input */}
             <footer
                 className={`${isMobile ? "p-2" : "p-4"} border-t border-border/50 bg-card/50`}
@@ -1078,6 +1338,26 @@ export default function ChatPanel({
                     showUnvalidatedModels={modelConfig.showUnvalidatedModels}
                     onConfigureModels={() => setShowModelConfigDialog(true)}
                 />
+                {/* Open Source Notice */}
+                <div className="mt-2 pt-2 border-t border-border/30">
+                    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span>{dict.opensource.description}</span>
+                            <a
+                                href="https://github.com/DayuanJiang/next-ai-draw-io"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline flex items-center gap-1"
+                            >
+                                <FaGithub className="w-3 h-3" />
+                                <span>{dict.opensource.githubLink}</span>
+                            </a>
+                        </div>
+                        <div className="text-muted-foreground/70">
+                            {dict.opensource.thanks} · {dict.opensource.license}
+                        </div>
+                    </div>
+                </div>
             </footer>
 
             <SettingsDialog

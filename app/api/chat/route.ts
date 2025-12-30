@@ -166,7 +166,33 @@ async function handleChatRequest(req: Request): Promise<Response> {
         }
     }
 
-    const { messages, xml, previousXml, sessionId } = await req.json()
+    // Parse request body with better error handling
+    let requestBody
+    try {
+        const bodyText = await req.text()
+        if (!bodyText || bodyText.trim() === "") {
+            return Response.json(
+                { error: "Request body is empty" },
+                { status: 400 },
+            )
+        }
+        requestBody = JSON.parse(bodyText)
+    } catch (error) {
+        console.error("[route.ts] JSON parse error:", error)
+        console.error(
+            "[route.ts] Request body preview:",
+            (await req.text()).substring(0, 200),
+        )
+        return Response.json(
+            {
+                error: "Invalid JSON in request body",
+                details: error instanceof Error ? error.message : String(error),
+            },
+            { status: 400 },
+        )
+    }
+
+    const { messages, xml, previousXml, sessionId } = requestBody
 
     // Get user ID for Langfuse tracking and quota
     const userId = getUserIdFromRequest(req)
@@ -466,7 +492,7 @@ ${userInputText}
         ...(process.env.MAX_OUTPUT_TOKENS && {
             maxOutputTokens: parseInt(process.env.MAX_OUTPUT_TOKENS, 10),
         }),
-        stopWhen: stepCountIs(5),
+        stopWhen: stepCountIs(10), // Increased from 5 to 10 to allow tool calls to complete
         // Repair truncated tool calls when maxOutputTokens is reached mid-JSON
         experimental_repairToolCall: async ({ toolCall, error }) => {
             // DEBUG: Log what we're trying to repair

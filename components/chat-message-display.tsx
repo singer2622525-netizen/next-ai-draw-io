@@ -274,7 +274,10 @@ export function ChatMessageDisplay({
                 setCopyFailedMessageId(messageId)
                 setTimeout(() => setCopyFailedMessageId(null), 2000)
             } finally {
-                document.body.removeChild(textarea)
+                // Check if textarea is still a child before removing
+                if (textarea.parentNode === document.body) {
+                    document.body.removeChild(textarea)
+                }
             }
         }
     }
