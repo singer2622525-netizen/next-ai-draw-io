@@ -506,6 +506,22 @@ export default function ChatPanel({
         }
     }, [setMessages])
 
+    // Check backup and project status
+    useEffect(() => {
+        const checkStatus = () => {
+            setHasBackup(
+                localStorage.getItem(STORAGE_HAS_BACKUP_KEY) === "true",
+            )
+            const hasMessages = !!localStorage.getItem(STORAGE_MESSAGES_KEY)
+            const hasDiagram = !!localStorage.getItem(STORAGE_DIAGRAM_XML_KEY)
+            setHasProject(hasMessages || hasDiagram)
+        }
+        checkStatus()
+        // Check periodically to update button visibility
+        const interval = setInterval(checkStatus, 1000)
+        return () => clearInterval(interval)
+    }, [])
+
     // Save messages to localStorage whenever they change (debounced to prevent blocking during streaming)
     useEffect(() => {
         if (!hasRestoredRef.current) return
